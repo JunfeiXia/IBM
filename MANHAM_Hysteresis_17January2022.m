@@ -18,7 +18,6 @@ Vs = zeros(20,20,5);   %   Vadose zone salinity, will be connect to another
                        
 LF_accumulation_invasive=zeros(100,100); % initialize invasive leaf accumlation
 LF_accumulation_local=zeros(100,100); % initialize local species leaf acculation
- 
 %  LF_annualLF_invasive=zeros(100,100,t);
 %  LF_annualLF_local=zeros(100,100,t);
  
@@ -26,7 +25,7 @@ deltz=zeros(20,20);
 deltz=deltz+1000;
  
 Nspec = 2;                % Number of species;
-Nyear = 100;              % Time span in years
+Nyear = 60;              % Time span in years
 
  
 % Ntree_max = 1000;          % Maximum tree numbers for each species;
@@ -121,7 +120,7 @@ end
 xdot_ori=xdot;
 ydot_ori=ydot;
  
- 
+StandingDead=-1*ones(1,Ntot); 
 % Find the neighbor of each tree, in order of nearest to furthest. 
 % Only record distances lower than 5.0m. Assume trees at distance further than 5.0m do not compete 
 for i = 1: Ntot % Iterate over all trees
@@ -156,10 +155,10 @@ distance = sparse(distance);  % Change to sparse matrix to save space
 %Iterate over time in time steps of months
 % time_i=1;
  
- 
+
  
 for t = 1: Nyear
-    
+   RemoveIdx=zeros(1,Ntot);
    if t>200
   G = [80 247];
   %G = [40 247]; %first on 26June
@@ -167,7 +166,7 @@ for t = 1: Nyear
   %G = [100 247]; %secong on 26June
    end 
     
-StandingDead=-1*ones(1,Ntot);
+
    
    
 %Next few statements are for debugging purposes    
@@ -229,7 +228,6 @@ for j = 1: Ntot  %Iterate over all trees
 %   litter fall according to rootfrc function   
 [locii locjj LF] = rootfrc(xdot(j),ydot(j),B_root,Max_rl,Ntp,dbh(j),cLF,bLW); 
 
-
       for ii = 1:length(LF)
         if Ntp == 1
             LF_grid1(locii(ii),locjj(ii)) = LF_grid1(locii(ii),locjj(ii)) + LF(ii);
@@ -251,8 +249,12 @@ for j = 1: Ntot  %Iterate over all trees
   % neighbor and nutrient competition, et cetera
   % FS calculates the shading effects of all neighbors.
     FS_sum = 0;
-        r2 = dbh(j)/200; % radius of tree, meters 
+        r2 = dbh(j)/200; % radius of tree, meters
         KR = c1*(r2)^c2; % radius of zone of influence (ZOI) for object tree.
+        if Tree_State(j)==2
+            StandingDead_multipier=1./exp(1+1.5*StandingDead(j));
+            KR=KR*StandingDead_multipier;
+        end
         NR_max = c1*(140/200)^c2; % potential neighbor
         di = distance(:,j); % load all neighbor distances
         if length(di)>1
@@ -274,8 +276,7 @@ for j = 1: Ntot  %Iterate over all trees
     % FS average is used to calculate a multipier, r_fon, that reduces the
     % growth rate of a tree due to shading.
     r_fon = 1-2*FS_ave; % assume FS_ave bigger 0.5, FON multiplier=0;
-    if r_fon<0.5
-        %alive(j)=0;  
+    if r_fon<0.5  
         r_fon = 0;
     end        
     
@@ -382,7 +383,7 @@ for j = 1 : Ntot    % Iterate over all existing tree to determine if they reprod
     end
     
 
-    for brate_i=1:6 %test
+    for brate_i=1:2 %test
     %for brate_i=1:8
     %for brate_i=1:10 %the real
     %for brate_i=1:9    
@@ -431,6 +432,7 @@ for j = 1 : Ntot    % Iterate over all existing tree to determine if they reprod
         Ntype(Ntot+Nnew)=Ntp; 
         dbh(Ntot+Nnew)= 1.37;   % Initial d.b.h.
         Iage(Ntot+Nnew)= 0;     % Initial age
+        StandingDead(Ntot+Nnew)= -1;
         Tree_State(Ntot+Nnew)=1;    % Assigned a value of 1, meaning alive
  
  
@@ -506,7 +508,6 @@ for j = 1 : Ntot    % Iterate over all existing tree to determine if they reprod
         end
     end
 %     end
-end
  
 % test_invasive_brate_year(t)={test_invasive_brate};
 % test_local_brate_year(t)={test_local_brate};
@@ -517,7 +518,6 @@ end
 % This continues the iteration over all trees and allows some probability
 % of mortality that depends on d.b.h.
  
-for j = 1 : Ntot
     if Tree_State(j) == 1
     Ntp = Ntype(j);
     temp = rand;
@@ -580,6 +580,9 @@ for j = 1 : Ntot
 %         end        
 %     end
     end
+    if Tree_State(j)==2
+       RemoveIdx(j)=dbh(j)/2<StandingDead(j);
+    end
 end
 % test_mc_year(t)={test_mc};
 % test_mc_invasive_year(t)={test_mc_invasive};
@@ -592,13 +595,15 @@ end
 % This discards dead trees and updates the indexing of the populations
  
 Ntot = Ntot + Nnew;
-% Remove tree dead for 5 years
-subx= find(StandingDead>5);
-Tree_State(subx)=0;
+% Remove tree dead for 7 years
+% subx= find(StandingDead>6);
+% Tree_State(subx)=0;
 
-subx = find(Tree_State==0); % Index of trees that are not alive
+subx=find(RemoveIdx==1);
+% subx = find(Tree_State==0); % Index of trees that are not alive
 Ntot = Ntot - length(subx);
 % delete info of trees that are not alive
+
 Ntype(subx)=[];
 Iage(subx)=[];
 dbh(subx)=[];
@@ -607,16 +612,9 @@ ydot(subx)=[];
 Tree_height(subx)=[];
 Tree_State(subx)=[];
 StandingDead(subx)=[];
-
-
-
-
-Iage = Iage + 1;
-DNC = 0;
 % re-organize Neighbor trees
 Neib(:,subx)=[];
 distance(:,subx)=[];
-
 Neib = reshape(Neib,1,[]);
 distance = reshape(distance,1,[]);
 for i = 1 : length(subx)
@@ -635,10 +633,13 @@ for i = 1 : length(subx)
 end
 Neib = reshape(Neib,[],Ntot);
 distance=reshape(distance,[],Ntot);
- 
+
+suby=find(Tree_State==1);
+Iage(suby) = Iage(suby) + 1; clear suby
+DNC = 0;
+
 subz = find(Tree_State == 2);
 StandingDead(subz) = StandingDead(subz) +1;
-
 
 % Pass info to vadose zone water movement and return salinity 
 %Vs = vadose(t,MB_root,HB_root);
@@ -654,6 +655,3 @@ StandingDead(subz) = StandingDead(subz) +1;
 t
 run_time=toc
 end % end of t(year)
- 
- 
-
