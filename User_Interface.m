@@ -35,8 +35,8 @@ Tree_information_I(:,4)=cell2mat(Tree_information(year,4)); % dbh
 Tree_information_I(:,5)=cell2mat(Tree_information(year,5)); % xdot
 Tree_information_I(:,6)=cell2mat(Tree_information(year,6)); % ydot
 % Tree_information_I(:,7)=cell2mat(Tree_information(year,7)); % Height
-% Tree_information_I(:,8)=cell2mat(Tree_information(year,7)); % State
-% Tree_information_I(:,9)=cell2mat(Tree_information(year,7)); % Number of years after dead
+% Tree_information_I(:,8)=cell2mat(Tree_information(year,8)); % State
+% Tree_information_I(:,9)=cell2mat(Tree_information(year,9)); % Number of years after dead
 
 
 Tree_information_I_Invasive=Tree_information_I(Tree_information_I(:,2)==1,:);
@@ -185,10 +185,10 @@ for display_i=1:length(figure_index)
                         Inside_local=find(Tree_information_I(:,5)>x(i) & Tree_information_I(:,5)<x(i+1)...
                             & Tree_information_I(:,6)<y(j) & Tree_information_I(:,6)>y(j+1) & Tree_information_I(:,2)==2);
 
-                        age_sum(i,j)=sum(Tree_information_I(Inside,3));
-                        age_sum_invasive(i,j)=sum(Tree_information_I(Inside_invasive,3));
-                        age_sum_local(i,j)=sum(Tree_information_I(Inside_local,3));
-                        age_mean(i,j)=mean(Tree_information_I(Inside,3));
+                        age_sum(j,i)=sum(Tree_information_I(Inside,3));
+                        age_sum_invasive(j,i)=sum(Tree_information_I(Inside_invasive,3));
+                        age_sum_local(j,i)=sum(Tree_information_I(Inside_local,3));
+                        age_mean(j,i)=mean(Tree_information_I(Inside,3));
                     end
                 end
                 figure(11) % age of invasive
